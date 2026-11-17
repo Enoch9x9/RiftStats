@@ -1,0 +1,21 @@
+# 运行时生成的
+data/
+__pycache__/
+*.pyc
+.tmp/
+build/
+dist/
+*.spec
+*.log
+
+# 个人数据与截图（绝对不能进仓库）
+samples/
+shots/
+*.db
+*.db-wal
+*.db-shm
+
+# 编辑器
+.vscode/
+.idea/
+.DS_Store
