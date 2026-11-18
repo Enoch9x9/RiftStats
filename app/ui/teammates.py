@@ -62,10 +62,16 @@ class TeammatesPage(QWidget):
         chart_lay.addLayout(self.chart_slot)
         root.addWidget(chart_panel, 0)
 
+        self.verdict = QLabel("")
+        self.verdict.setObjectName("CardHint")
+        self.verdict.setWordWrap(True)
+        root.addWidget(self.verdict)
+
         table_panel, table_lay = widgets.panel()
         table_lay.addWidget(widgets.SectionTitle("明细"))
         self.table = widgets.make_table(
-            ["队友", "类型", "同队", "胜", "胜率", "95% CI", "相对自己", "场均输出", "场均承伤", "队内占比"]
+            ["队友", "类型", "同队", "胜", "胜率", "95% CI", "相对自己",
+             "场均输出", "场均承伤", "队内占比", "综合评分"]
         )
         self.table.setSortingEnabled(True)
         table_lay.addWidget(self.table)
@@ -93,6 +99,7 @@ class TeammatesPage(QWidget):
         )
         self.marker_hint.setText(f"虚线 = 你自己 {base*100:.1f}%｜按同队场次排序，最多 8 人")
 
+
         # 图表
         while self.chart_slot.count():
             item = self.chart_slot.takeAt(0)
@@ -116,6 +123,40 @@ class TeammatesPage(QWidget):
             empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.chart_slot.addWidget(empty)
 
+        # 综合评分：胜率 40% + 场均输出 35% + 队内占比 25%，都取在"这伙队友里"的百分位
+        def pct(vals: list[float], v: float) -> float:
+            n = len(vals)
+            if n <= 1:
+                return 0.5
+            rank = sum(1 for x in vals if x <= v)
+            return (rank - 0.5) / n
+
+        pool = [r for r in shown if r.games >= 5] or shown
+        wr_pool = [r.win_rate for r in pool]
+        dmg_pool = [r.dmg_avg for r in pool]
+        share_pool = [r.share_avg for r in pool]
+        score_of: dict[str, float] = {}
+        for r in shown:
+            score_of[r.name] = 100.0 * (
+                0.40 * pct(wr_pool, r.win_rate)
+                + 0.35 * pct(dmg_pool, r.dmg_avg)
+                + 0.25 * pct(share_pool, r.share_avg)
+            )
+
+        # 最像内鬼：样本 ≥10 场里综合分最低的那个
+        eligible = [r for r in shown if r.games >= 10] or shown
+        suspect = min(eligible, key=lambda r: score_of.get(r.name, 0)) if eligible else None
+        if suspect is not None and suspect.games >= 10:
+            verdict = (
+                f"综合评分最低的是「{suspect.name}」：{suspect.games} 场，胜率 "
+                f"{suspect.win_rate*100:.1f}%（你 {base*100:.1f}%，相对 {suspect.delta:+.1f}）"
+                f"，队内占比 {suspect.share_avg*100:.1f}%。"
+                f"样本 {suspect.games} 场，95% 区间 {suspect.ci_text}——区间越窄结论越硬。"
+            )
+        else:
+            verdict = "样本还太少，先多打几场再看谁是内鬼。"
+        self.verdict.setText(verdict)
+
         # 表格
         self.table.setSortingEnabled(False)
         self.table.setRowCount(0)
@@ -133,9 +174,11 @@ class TeammatesPage(QWidget):
                 widgets.fmt_int(r.dmg_avg),
                 widgets.fmt_int(r.taken_avg),
                 f"{r.share_avg*100:.1f}%",
+                f"{score_of.get(r.name, 0):.0f}",
             ]
             numeric = {2: r.games, 3: r.wins, 4: r.win_rate, 6: r.delta,
-                       7: r.dmg_avg, 8: r.taken_avg, 9: r.share_avg}
+                       7: r.dmg_avg, 8: r.taken_avg, 9: r.share_avg,
+                       10: score_of.get(r.name, 0)}
             for c, text in enumerate(cells):
                 item = (
                     widgets.NumItem.make(text, numeric[c])
@@ -148,6 +191,12 @@ class TeammatesPage(QWidget):
                     item.setForeground(QColor(theme.WIN if r.delta >= 0 else theme.LOSS))
                 if c == 1 and r.games >= 3:
                     item.setForeground(QColor(theme.TEXT_DIM))
+                if c == 10 and suspect is not None and r.name == suspect.name:
+                    item.setForeground(QColor(theme.LOSS))
+                    item.setToolTip(
+                        f"综合评分最低（{r.games} 场，胜率 {r.win_rate*100:.1f}%）。"
+                        "评分 = 胜率 40% + 场均输出 35% + 队内占比 25%"
+                    )
                 self.table.setItem(i, c, item)
         self.table.setSortingEnabled(True)
         self.table.sortItems(2, Qt.SortOrder.DescendingOrder)

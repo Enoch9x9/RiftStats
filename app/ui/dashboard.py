@@ -180,11 +180,19 @@ class DashboardPage(QWidget):
         middle_lay.addWidget(widgets.SectionTitle("胜局 vs 败局：输出 / 承伤"))
         self.bar_slot = QVBoxLayout()
         middle_lay.addLayout(self.bar_slot)
+        self.dmg_note = QLabel("")
+        self.dmg_note.setObjectName("CardHint")
+        self.dmg_note.setWordWrap(True)
+        middle_lay.addWidget(self.dmg_note)
 
         right, right_lay = widgets.panel()
-        right_lay.addWidget(widgets.SectionTitle("英雄 TOP 5 · 按场次"))
+        right_lay.addWidget(widgets.SectionTitle("英雄 TOP 5 · 按出场场次"))
         right_lay.setSpacing(8)
         self.champ_chart = widgets.HBarList()
+        self.champ_hint = QLabel("条形长度 = 该英雄的胜率，虚线是你自己的总胜率；排序按场次，不是按胜率")
+        self.champ_hint.setObjectName("CardHint")
+        self.champ_hint.setWordWrap(True)
+        right_lay.addWidget(self.champ_hint)
         self.champ_chart.setMinimumHeight(170)
         right_lay.addWidget(self.champ_chart, 0, Qt.AlignmentFlag.AlignTop)
         right_lay.addStretch(1)
@@ -325,6 +333,31 @@ class DashboardPage(QWidget):
                     bar_width=0.26,
                 )
             )
+
+        # 胜局 vs 败局的差距，用人话解释一下
+        try:
+            if s.dmg_loss_avg > 0:
+                diff = (s.dmg_win_avg - s.dmg_loss_avg) / s.dmg_loss_avg * 100
+                if diff >= 15:
+                    msg = (
+                        f"赢的局你场均多打 {diff:.0f}%——**输赢取决于你有没有真的打出输出**，"
+                        "不打满就容易输，你是这队的主要火力。"
+                    )
+                elif diff <= -15:
+                    msg = (
+                        f"输的局反而多打 {abs(diff):.0f}%——你输出够了但队伍跟不上，"
+                        "再多打也换不来胜利，这时候该看的是队友而不是自己。"
+                    )
+                else:
+                    msg = (
+                        f"输赢的输出只差 {diff:+.0f}%——赢的时候你没多打，输的时候也没少打，"
+                        "说明胜负基本不由你的输出决定，你是跟着队伍走的那个人。"
+                    )
+            else:
+                msg = "还没有足够数据判断输出与胜负的关系。"
+        except Exception:
+            msg = ""
+        self.dmg_note.setText(msg.replace("**", ""))
 
         # 英雄 TOP 5
         top_champs = champion_table(matches, viewer=viewer)[:5]

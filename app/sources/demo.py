@@ -10,8 +10,15 @@ import time
 
 from ..models import BLUE, RED, Match, Participant
 
-# 全是编的，跟任何真实玩家无关
+# 全是编的，跟任何真实玩家无关。
+# 这里的权重只影响演示数据的胜负走向，让"抓内鬼"有东西可看。
 FRIENDS = ["老张不抓上路", "奶茶只要三分糖", "凌晨四点的猫", "只会玩辅助"]
+FRIEND_EFFECT = {
+    "老张不抓上路": 0.13,
+    "奶茶只要三分糖": 0.05,
+    "凌晨四点的猫": -0.05,
+    "只会玩辅助": -0.19,
+}
 STRANGERS = [
     "电竞小学生",
     "打野在挂机",
@@ -48,13 +55,16 @@ def generate(count: int = 48, seed: int = 20261117, self_name: str = "示例玩�
         mode = rng.choice(MODES)
         duration = rng.randint(900, 2400) if mode == "ARAM" else rng.randint(1500, 2700)
 
-        win = rng.random() < 0.54
         self_side = rng.choice([BLUE, RED])
         enemy_side = RED if self_side == BLUE else BLUE
 
         # 队友：好友 2 个 + 路人 2 个（大乱斗随机队友）
         mates = rng.sample(FRIENDS, 2) + rng.sample(STRANGERS, 2)
         rng.shuffle(mates)
+
+        # 队友是谁会影响胜负，这样"抓内鬼"才有数据支撑
+        p_win = 0.52 + sum(FRIEND_EFFECT.get(n, 0.0) for n in mates)
+        win = rng.random() < max(0.12, min(0.88, p_win))
 
         parts: list[Participant] = []
         me_dmg = _damage(rng, win)

@@ -100,6 +100,12 @@ class MatchesPage(QWidget):
         self.detail_title.setObjectName("CardHint")
         head2.addWidget(self.detail_title)
         head2.addStretch(1)
+        self.detail_score = QLabel("")
+        self.detail_score.setStyleSheet(
+            f"color: {theme.GOLD}; font-size: 20px; font-weight: 700;"
+        )
+        head2.addWidget(self.detail_score)
+        head2.addStretch(1)
         detail_lay.addLayout(head2)
         self.detail = widgets.make_table(
             ["队伍", "玩家", "位次", "伤害评分", "团队贡献率", "KDA", "输出", "承伤",
@@ -266,6 +272,15 @@ class MatchesPage(QWidget):
         )
         scores = match_scores(match)
         contribs = match_contributions(match)
+        viewer_name = getattr(self, "_viewer", None)
+        target = match.player_for(viewer_name)
+        if target is not None:
+            sc = scores.get(target.name, 0.0)
+            self.detail_score.setText(f"本局伤害评分 {sc:.0f}")
+            color = theme.WIN if sc >= 60 else (theme.TEXT if sc >= 40 else theme.LOSS)
+            self.detail_score.setStyleSheet(
+                f"color: {color}; font-size: 20px; font-weight: 700;"
+            )
         self.detail.setRowCount(0)
         mine: dict[str, list[tuple[int, float]]] = {
             "score": [], "contrib": [], "dmg": [], "taken": [], "assist": [], "feed": []
