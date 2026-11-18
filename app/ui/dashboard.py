@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import time
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QEvent, QObject, Qt, Signal
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QFrame,
     QGridLayout,
+    QScrollArea,
     QHBoxLayout,
     QLabel,
     QSizePolicy,
@@ -55,12 +56,42 @@ class _MiniStat(QFrame):
         self._value.setStyleSheet(f"font-size: 19px; font-weight: 700; color: {color};")
 
 
+class _ClickCatcher(QObject):
+    """把面板上的点击转成信号（标签会把鼠标事件吃掉，所以装过滤器）。"""
+
+    def __init__(self, callback, parent=None):
+        super().__init__(parent)
+        self._callback = callback
+
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.Type.MouseButtonPress:
+            self._callback()
+        return False
+
+
 class DashboardPage(QWidget):
+    open_matches = Signal()
+
     def __init__(self, parent=None):
         super().__init__(parent)
-        root = QVBoxLayout(self)
-        root.setContentsMargins(28, 22, 28, 22)
-        root.setSpacing(16)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        outer.addWidget(scroll)
+
+        scroll.setStyleSheet("QScrollArea { background: transparent; border: none; }")
+        scroll.viewport().setStyleSheet(f"background: {theme.BG};")
+        self._scroll = scroll
+
+        content = QWidget()
+        content.setStyleSheet("background: transparent;")
+        scroll.setWidget(content)
+        root = QVBoxLayout(content)
+        root.setContentsMargins(28, 22, 28, 18)
+        root.setSpacing(12)
 
         head = QVBoxLayout()
         head.setSpacing(2)
@@ -100,6 +131,11 @@ class DashboardPage(QWidget):
         eval_row.addWidget(self.report_stats)
 
         eval_lay.addLayout(eval_row)
+        for child in eval_panel.findChildren(QWidget):
+            child.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self._report_click = _ClickCatcher(self.open_matches.emit, self)
+        eval_panel.installEventFilter(self._report_click)
+        eval_panel.setCursor(Qt.CursorShape.PointingHandCursor)
         self.report_box = eval_panel
         root.addWidget(eval_panel)
 
@@ -147,8 +183,11 @@ class DashboardPage(QWidget):
 
         right, right_lay = widgets.panel()
         right_lay.addWidget(widgets.SectionTitle("英雄 TOP 5 · 按场次"))
+        right_lay.setSpacing(8)
         self.champ_chart = widgets.HBarList()
-        right_lay.addWidget(self.champ_chart)
+        self.champ_chart.setMinimumHeight(170)
+        right_lay.addWidget(self.champ_chart, 0, Qt.AlignmentFlag.AlignTop)
+        right_lay.addStretch(1)
         right.setFixedWidth(330)
 
         charts.addWidget(left)
@@ -170,7 +209,7 @@ class DashboardPage(QWidget):
             ["时间", "模式", "结果", "英雄", "KDA", "输出", "承伤", "队内输出占比", "队友"]
         )
         self.table.horizontalHeader().setStretchLastSection(True)
-        self.table.setFixedHeight(168)
+        self.table.setFixedHeight(150)
         recent_lay.addWidget(self.table)
         root.addWidget(recent, 2)
 
@@ -283,7 +322,7 @@ class DashboardPage(QWidget):
                     },
                     [theme.ACCENT, theme.WARN],
                     horizontal=False,
-                    bar_width=0.45,
+                    bar_width=0.26,
                 )
             )
 

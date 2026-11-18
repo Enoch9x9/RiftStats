@@ -25,6 +25,7 @@ from ..stats import summarize
 from . import theme, widgets
 from .dashboard import DashboardPage
 from .importer import ImportPage
+from .recent_dialog import RecentDialog
 from .matches import MatchesPage
 from .recommend import RecommendPage
 from .teammates import TeammatesPage
@@ -168,6 +169,8 @@ class MainWindow(QMainWindow):
 
         self.matches_page.changed.connect(self.refresh)
         self.import_page.data_changed.connect(self.refresh)
+        self.import_page.synced.connect(self._show_recent_dialog)
+        self.dashboard.open_matches.connect(lambda: self._goto(1))
 
         bar = QStatusBar()
         self.setStatusBar(bar)
@@ -192,6 +195,21 @@ class MainWindow(QMainWindow):
                 apply_dark_titlebar(int(self.winId()), caption=theme.BG, text=theme.TEXT)
             except Exception:
                 pass
+
+    def _show_recent_dialog(self) -> None:
+        """同步完最近 20 场：弹一张评价卡，关掉就回总览。"""
+        from ..stats import recent_report
+
+        viewer = self.viewer_combo.currentData() or None
+        matches = self.store.all()
+        if viewer:
+            matches = [m for m in matches if m.has_player(viewer)]
+        rep = recent_report(matches, viewer=viewer, window=20)
+        if rep is None:
+            return
+        dlg = RecentDialog(rep, self)
+        dlg.exec()
+        self._goto(0)
 
     def _goto(self, index: int) -> None:
         self.stack.setCurrentIndex(index)

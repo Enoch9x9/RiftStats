@@ -44,6 +44,7 @@ class Worker(QThread):
 
 class ImportPage(QWidget):
     data_changed = Signal()
+    synced = Signal()  # 同步最近 20 场完成，用来弹评价
 
     def __init__(self, store, parent=None):
         super().__init__(parent)
@@ -421,3 +422,4 @@ class ImportPage(QWidget):
         self.store.clear(source="demo")
         self._log("演示数据已清空")
         self.data_changed.emit()
+        self.synced.emit()

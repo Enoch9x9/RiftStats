@@ -250,7 +250,9 @@ class MatchesPage(QWidget):
         if not rows:
             return
         item = self.table.item(min(rows), 0)
-        mid = item.data(Qt.ItemDataRole.UserRole) if item else None
+        mid = None
+        if item is not None:
+            mid = item.data(Qt.ItemDataRole.UserRole + 1) or item.data(Qt.ItemDataRole.UserRole)
         match = next((m for m in self._matches if m.match_id == mid), None)
         if match is None and self._matches:
             match = self._matches[0]
@@ -382,8 +384,10 @@ class MatchesPage(QWidget):
         ids = []
         for r in rows:
             item = self.table.item(r, 0)
-            if item and item.data(Qt.ItemDataRole.UserRole):
-                ids.append(item.data(Qt.ItemDataRole.UserRole))
+            if item and (item.data(Qt.ItemDataRole.UserRole + 1) or item.data(Qt.ItemDataRole.UserRole)):
+                ids.append(
+                    item.data(Qt.ItemDataRole.UserRole + 1) or item.data(Qt.ItemDataRole.UserRole)
+                )
         for mid in ids:
             self.store.delete(mid)
         self.changed.emit()
