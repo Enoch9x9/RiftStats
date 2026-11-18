@@ -8,6 +8,7 @@ from pathlib import Path
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
+    QFrame,
     QComboBox,
     QFileDialog,
     QHBoxLayout,
@@ -116,7 +117,32 @@ class MatchesPage(QWidget):
         self._install_tooltips()
         self.detail.setRowCount(10)
         self.detail.setFixedHeight(345)
-        detail_lay.addWidget(self.detail)
+        body = QHBoxLayout()
+        body.setSpacing(12)
+        body.addWidget(self.detail, 1)
+
+        score_card = QFrame()
+        score_card.setObjectName("Card")
+        score_card.setFixedWidth(230)
+        sc_lay = QVBoxLayout(score_card)
+        sc_lay.setContentsMargins(16, 14, 16, 14)
+        sc_lay.setSpacing(6)
+        sc_title = QLabel("本局伤害评分")
+        sc_title.setObjectName("CardHint")
+        sc_lay.addWidget(sc_title)
+        self.score_big = QLabel("--")
+        self.score_big.setStyleSheet(
+            f"color: {theme.GOLD}; font-size: 64px; font-weight: 800;"
+        )
+        sc_lay.addWidget(self.score_big)
+        self.score_grade = QLabel("点一局看这局的表现")
+        self.score_grade.setObjectName("CardHint")
+        self.score_grade.setWordWrap(True)
+        sc_lay.addWidget(self.score_grade)
+        sc_lay.addStretch(1)
+        body.addWidget(score_card)
+
+        detail_lay.addLayout(body)
         root.addWidget(detail, 2)
 
     def _install_tooltips(self) -> None:
@@ -275,12 +301,19 @@ class MatchesPage(QWidget):
         viewer_name = getattr(self, "_viewer", None)
         target = match.player_for(viewer_name)
         if target is not None:
-            sc = scores.get(target.name, 0.0)
-            self.detail_score.setText(f"本局伤害评分 {sc:.0f}")
+            team_dmg = sum(x.damage_dealt for x in match.team(target.side))
+            sc = player_score(target, team_dmg, match.duration_s)
+            share = match.share_for(target)
             color = theme.WIN if sc >= 60 else (theme.TEXT if sc >= 40 else theme.LOSS)
-            self.detail_score.setStyleSheet(
-                f"color: {color}; font-size: 20px; font-weight: 700;"
+            self.score_big.setText(f"{sc:.0f}")
+            self.score_big.setStyleSheet(
+                f"color: {color}; font-size: 64px; font-weight: 800;"
             )
+            self.score_grade.setText(
+                f"{'胜利' if match.win else '失败'} · 队内占比 {share*100:.0f}% · "
+                f"输出 {target.damage_dealt:,} · 承伤 {target.damage_taken:,}"
+            )
+            self.detail_score.setText("")
         self.detail.setRowCount(0)
         mine: dict[str, list[tuple[int, float]]] = {
             "score": [], "contrib": [], "dmg": [], "taken": [], "assist": [], "feed": []

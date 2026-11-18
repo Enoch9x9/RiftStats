@@ -186,14 +186,14 @@ class DashboardPage(QWidget):
         middle_lay.addWidget(self.dmg_note)
 
         right, right_lay = widgets.panel()
-        right_lay.addWidget(widgets.SectionTitle("英雄 TOP 5 · 按出场场次"))
+        right_lay.addWidget(widgets.SectionTitle("英雄 TOP 7 · 按出场场次"))
         right_lay.setSpacing(8)
         self.champ_chart = widgets.HBarList()
         self.champ_hint = QLabel("条形长度 = 该英雄的胜率，虚线是你自己的总胜率；排序按场次，不是按胜率")
         self.champ_hint.setObjectName("CardHint")
         self.champ_hint.setWordWrap(True)
         right_lay.addWidget(self.champ_hint)
-        self.champ_chart.setMinimumHeight(170)
+        self.champ_chart.setMinimumHeight(240)
         right_lay.addWidget(self.champ_chart, 0, Qt.AlignmentFlag.AlignTop)
         right_lay.addStretch(1)
         right.setFixedWidth(330)
@@ -330,7 +330,7 @@ class DashboardPage(QWidget):
                     },
                     [theme.ACCENT, theme.WARN],
                     horizontal=False,
-                    bar_width=0.26,
+                    bar_width=0.42,
                 )
             )
 
@@ -357,10 +357,19 @@ class DashboardPage(QWidget):
                 msg = "还没有足够数据判断输出与胜负的关系。"
         except Exception:
             msg = ""
-        self.dmg_note.setText(msg.replace("**", ""))
+        numbers = (
+            "胜局：输出 %s · 承伤 %s　｜　败局：输出 %s · 承伤 %s"
+            % (
+                widgets.fmt_int(s.dmg_win_avg),
+                widgets.fmt_int(s.taken_win_avg),
+                widgets.fmt_int(s.dmg_loss_avg),
+                widgets.fmt_int(s.taken_loss_avg),
+            )
+        )
+        self.dmg_note.setText(numbers + "\n" + msg.replace("**", ""))
 
         # 英雄 TOP 5
-        top_champs = champion_table(matches, viewer=viewer)[:5]
+        top_champs = champion_table(matches, viewer=viewer)[:7]
         self.champ_chart.set_items(
             [(r.name, r.win_rate * 100, f"{r.win_rate*100:.0f}%") for r in top_champs],
             color=theme.GOLD,

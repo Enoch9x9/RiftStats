@@ -9,6 +9,7 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
+    QFrame,
     QComboBox,
     QHBoxLayout,
     QLabel,
@@ -75,7 +76,38 @@ class TeammatesPage(QWidget):
         )
         self.table.setSortingEnabled(True)
         table_lay.addWidget(self.table)
-        root.addWidget(table_panel, 1)
+        row = QHBoxLayout()
+        row.setSpacing(12)
+        row.addWidget(table_panel, 1)
+
+        suspect_card = QFrame()
+        suspect_card.setObjectName("Card")
+        suspect_card.setFixedWidth(250)
+        sc = QVBoxLayout(suspect_card)
+        sc.setContentsMargins(16, 14, 16, 14)
+        sc.setSpacing(6)
+        cap = QLabel("最像内鬼的人")
+        cap.setObjectName("CardHint")
+        sc.addWidget(cap)
+        self.suspect_name = QLabel("--")
+        self.suspect_name.setWordWrap(True)
+        self.suspect_name.setStyleSheet(
+            "color: " + theme.LOSS + "; font-size: 26px; font-weight: 800;"
+        )
+        sc.addWidget(self.suspect_name)
+        self.suspect_score = QLabel("")
+        self.suspect_score.setStyleSheet(
+            "color: " + theme.TEXT + "; font-size: 44px; font-weight: 800;"
+        )
+        sc.addWidget(self.suspect_score)
+        self.suspect_detail = QLabel("")
+        self.suspect_detail.setObjectName("CardHint")
+        self.suspect_detail.setWordWrap(True)
+        sc.addWidget(self.suspect_detail)
+        sc.addStretch(1)
+        row.addWidget(suspect_card)
+
+        root.addLayout(row, 1)
 
     # ---- 刷新 ------------------------------------------------------------
     def set_data(self, matches: list[Match], friends: set[str] | None = None,
@@ -156,6 +188,18 @@ class TeammatesPage(QWidget):
         else:
             verdict = "样本还太少，先多打几场再看谁是内鬼。"
         self.verdict.setText(verdict)
+        if suspect is not None and suspect.games >= 10:
+            self.suspect_name.setText(suspect.name)
+            self.suspect_score.setText("%.0f 分" % score_of.get(suspect.name, 0))
+            self.suspect_detail.setText(
+                "%d 场 · 胜率 %.1f%%\n相对你 %+.1f 个百分点\n队内占比 %.1f%%"
+                % (suspect.games, suspect.win_rate * 100, suspect.delta,
+                   suspect.share_avg * 100)
+            )
+        else:
+            self.suspect_name.setText("--")
+            self.suspect_score.setText("")
+            self.suspect_detail.setText("样本太少")
 
         # 表格
         self.table.setSortingEnabled(False)

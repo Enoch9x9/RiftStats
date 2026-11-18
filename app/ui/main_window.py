@@ -216,6 +216,8 @@ class MainWindow(QMainWindow):
 
     def _goto(self, index: int) -> None:
         self.stack.setCurrentIndex(index)
+        if 0 <= index < self.group.buttons().__len__():
+            self.group.button(index).setChecked(True)
 
     # ---- 数据 ------------------------------------------------------------
     def _seed_if_empty(self) -> None:

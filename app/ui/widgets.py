@@ -7,6 +7,7 @@ from typing import Iterable, Sequence
 
 from PySide6.QtCharts import (
     QBarCategoryAxis,
+    QAbstractBarSeries,
     QBarSeries,
     QBarSet,
     QChart,
@@ -143,6 +144,7 @@ def bar_chart(
         bar.append([float(v) for v in values])
         bar.setLabelColor(QColor(theme.TEXT_DIM))
         base.append(bar)
+    # 柱上标签在双系列时容易叠在一起，数值统一放在图表下方说明里
     base.setLabelsVisible(False)
     chart.addSeries(base)
 
