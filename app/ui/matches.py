@@ -184,7 +184,7 @@ class MatchesPage(QWidget):
             team_dmg = sum(x.damage_dealt for x in m.team(me.side)) if me else 0
             score = player_score(me, team_dmg, m.duration_s) if me else 0.0
             cells = [
-                m.created_at_str[5:],
+                m.created_at_str,
                 f"{score:.0f}",
                 mode_display(m.mode),
                 "胜" if m.win else "负",
@@ -206,9 +206,11 @@ class MatchesPage(QWidget):
                         QColor(theme.WIN if score >= 60 else (theme.TEXT if score >= 40 else theme.LOSS))
                     )
                 if c == 0:
-                    item.setData(Qt.ItemDataRole.UserRole, m.match_id)
+                    item = widgets.NumItem.make(text, m.created_at)
+                    item.setData(Qt.ItemDataRole.UserRole + 1, m.match_id)
                 self.table.setItem(r, c, item)
         self.table.setSortingEnabled(True)
+        self.table.sortItems(0, Qt.SortOrder.DescendingOrder)  # 最新的在最上面
         self.table.resizeColumnsToContents()
         self._update_mate_summary(rows, mate)
         if self.table.rowCount() and not self.table.selectedItems():

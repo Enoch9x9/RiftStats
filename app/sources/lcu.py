@@ -686,6 +686,16 @@ def parse_match_detail(detail: dict, self_puuid: str, champs: dict[int, str] | N
                 vision=_int(stats.get("visionScore", stats.get("VISION_SCORE"))),
                 is_self=is_self,
                 puuid=puuids.get(pid, ""),
+                items=[
+                    _int(stats.get("item%d" % i))
+                    for i in range(7)
+                    if _int(stats.get("item%d" % i))
+                ],
+                augments=[
+                    _int(stats.get("playerAugment%d" % i))
+                    for i in range(1, 7)
+                    if _int(stats.get("playerAugment%d" % i))
+                ],
             )
         )
 

@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 
 from ..models import Match, mode_display
 from ..stats import (
+    recent_report,
     Summary,
     best_and_worst_champion,
     champion_table,
@@ -70,6 +71,37 @@ class DashboardPage(QWidget):
         head.addWidget(title)
         head.addWidget(self.sub)
         root.addLayout(head)
+
+        # 近期评价（最近 20 场）
+        eval_panel, eval_lay = widgets.panel()
+        eval_row = QHBoxLayout()
+        eval_row.setSpacing(16)
+        self.report_grade = QLabel("--")
+        self.report_grade.setObjectName("BigGrade")
+        self.report_grade.setFixedWidth(96)
+        self.report_grade.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        eval_row.addWidget(self.report_grade)
+
+        mid = QVBoxLayout()
+        mid.setSpacing(4)
+        self.report_title = QLabel("近期评价")
+        self.report_title.setObjectName("SectionTitle")
+        self.report_comment = QLabel("还没有足够数据")
+        self.report_comment.setObjectName("PageSub")
+        self.report_comment.setWordWrap(True)
+        mid.addWidget(self.report_title)
+        mid.addWidget(self.report_comment)
+        eval_row.addLayout(mid, 1)
+
+        self.report_stats = QLabel("")
+        self.report_stats.setObjectName("CardHint")
+        self.report_stats.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        self.report_stats.setMinimumWidth(260)
+        eval_row.addWidget(self.report_stats)
+
+        eval_lay.addLayout(eval_row)
+        self.report_box = eval_panel
+        root.addWidget(eval_panel)
 
         # KPI 网格（4 列 × 2 行）
         grid = QGridLayout()
@@ -148,6 +180,27 @@ class DashboardPage(QWidget):
     def refresh(self, matches: list[Match], viewer: str | None = None) -> None:
         s = summarize(matches, viewer=viewer)
         self._summary = s
+
+        rep = recent_report(matches, viewer=viewer, window=20)
+        if rep is None:
+            self.report_grade.setText("--")
+            self.report_comment.setText("还没有足够数据，先拉点对局")
+            self.report_stats.setText("")
+        else:
+            self.report_grade.setText(rep.grade)
+            color = {"S": theme.GOLD, "A": theme.WIN, "B": theme.ACCENT,
+                     "C": "#E8A33D", "D": theme.LOSS}.get(rep.grade, theme.TEXT)
+            self.report_grade.setStyleSheet(f"color: {color};")
+            self.report_title.setText(
+                f"近期评价 · 最近 {rep.games} 场 · {rep.score:.0f} 分 · 胜率 {rep.win_rate*100:.0f}%"
+            )
+            note = f"（{rep.mode_note}）" if rep.mode_note else ""
+            self.report_comment.setText(rep.comment + note)
+            self.report_stats.setText(
+                f"每分钟伤害 {rep.dpm:,.0f}（平时 {rep.dpm_base:,.0f}）\n"
+                f"队内占比 {rep.share*100:.1f}%（平时 {rep.share_base*100:.1f}%）\n"
+                f"KDA {rep.kda:.2f}（平时 {rep.kda_base:.2f}）"
+            )
 
         if not matches:
             self.sub.setText("还没有对局数据 —— 去「导入数据」拉客户端记录，或先载入演示数据")

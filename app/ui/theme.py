@@ -260,6 +260,12 @@ QStatusBar {{
     color: {TEXT_DIM};
     border-top: 1px solid {BORDER};
 }}
+
+#BigGrade {{
+    font-size: 56px;
+    font-weight: 800;
+    padding: 4px 0;
+}}
 """
 
 

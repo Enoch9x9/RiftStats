@@ -17,6 +17,7 @@ from ..models import Match
 from ..stats import ChampAdvice, champion_advice, feature_weights, summarize
 from . import theme, widgets
 
+GRADE_RANK = {"S": 5, "A": 4, "B": 3, "C": 2, "D": 1, "样本不足": 0}
 GRADE_COLOR = {"S": theme.GOLD, "A": theme.WIN, "B": theme.ACCENT, "C": theme.LOSS,
                "样本不足": theme.TEXT_DIM}
 
@@ -158,6 +159,8 @@ class RecommendPage(QWidget):
                 if c:
                     item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 if c == 1:
+                    # 评级要按 S>A>B>C 排，不能按字母序
+                    item = widgets.NumItem.make(r.grade, GRADE_RANK.get(r.grade, 0))
                     item.setForeground(QColor(GRADE_COLOR.get(r.grade, theme.TEXT)))
                 if c == 5:
                     item.setToolTip(f"95% 置信区间 {r.ci_text}")

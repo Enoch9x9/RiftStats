@@ -278,6 +278,236 @@ def _corr(a: list[float], b: list[float]) -> float:
 PRIOR_WEIGHTS = {"win_rate": 0.45, "dmg": 0.20, "taken": 0.10, "kda": 0.20, "pick": 0.10}
 
 
+@dataclass
+class GearRow:
+    """一件装备 / 一个强化，在你这些对局里的表现。"""
+
+    key: int
+    name: str
+    games: int
+    wins: int
+    win_rate: float
+    delta: float
+    share: float
+
+
+def gear_table(
+    matches: list[Match], viewer: str | None = None, champion: str | None = None,
+    min_games: int = 1,
+) -> tuple[list[GearRow], list[GearRow], int]:
+    """统计装备与强化。返回 (装备行, 强化行, 参与统计的对局数)。"""
+    from .catalog import augment_name, item_name
+
+    picked: list[Match] = []
+    for m in matches:
+        p = m.player_for(viewer)
+        if not p:
+            continue
+        if champion and p.champion != champion:
+            continue
+        picked.append(m)
+
+    if not picked:
+        return [], [], 0
+
+    base = sum(1 for m in picked if m.win) / len(picked)
+
+    item_bucket: dict[int, list[Match]] = defaultdict(list)
+    aug_bucket: dict[int, list[Match]] = defaultdict(list)
+    for m in picked:
+        p = m.player_for(viewer)
+        for iid in set(p.items):
+            item_bucket[iid].append(m)
+        for aid in set(p.augments):
+            aug_bucket[aid].append(m)
+
+    def build(bucket: dict[int, list[Match]], namer, offset: int) -> list[GearRow]:
+        rows: list[GearRow] = []
+        for key, ms in bucket.items():
+            if len(ms) < min_games:
+                continue
+            wins = sum(1 for m in ms if m.win)
+            rate = wins / len(ms)
+            rows.append(
+                GearRow(
+                    key=key + offset,
+                    name=namer(key),
+                    games=len(ms),
+                    wins=wins,
+                    win_rate=rate,
+                    delta=(rate - base) * 100,
+                    share=len(ms) / len(picked),
+                )
+            )
+        rows.sort(key=lambda r: (-r.win_rate, -r.games))
+        return rows
+
+    return (
+        build(item_bucket, item_name, 0),
+        build(aug_bucket, augment_name, 100000),
+        len(picked),
+    )
+
+
+# ---------------------------------------------------------------------------
+# 近期评价
+# ---------------------------------------------------------------------------
+
+_QUIPS = {
+    "S": [
+        "最近 {n} 场你这是把对手当练桩机用了，场均 {dpm}，比你自己平时的数据高出 {diff}%。",
+        "输出拉满，节奏还在手上。场均 {dpm}、占比 {share}%，这波不是运气，是手感在线。",
+        "别急着谦虚，{n} 场打出这个量，你近期确实在状态里。",
+    ],
+    "A": [
+        "打得不错，场均 {dpm} 不算虚，就是还差一口气没到离谱的程度。",
+        "高于你自己的平均线 {diff}%，说明最近手感偏热，别断，趁热多打几场。",
+        "输出稳，节奏也稳，属于‘不拖后腿还带点输出’的那种。",
+    ],
+    "B": [
+        "稳如老树皮：场均 {dpm}，跟你平时一模一样，赢了不靠你，输了也不怪你。",
+        "中规中矩，{n} 场里输出基本贴着均值走，属于队伍里的背景板但至少不塌。",
+        "不好不坏，胜率 {wr}%。这段时间你在游戏里的存在感，跟家里的路由器差不多——有用，但没人想起。",
+    ],
+    "C": [
+        "场均 {dpm}，比你平时低了 {diff}%。要么在划水，要么把把被针对，反正看着不太像在认真玩。",
+        "输出掉到这个程度，赢的局也不是你赢的。承认吧，最近是有点混。",
+        "这 {n} 场里你的主要贡献可能是帮队友分摊了一点仇恨值。",
+    ],
+    "D": [
+        "场均 {dpm}，比平时少 {diff}%。这段数据的观赏性大于实用性，建议先休息一下再上。",
+        "老实说，这 {n} 场的输出不足以支撑任何战术讨论，先别管段位，把手感找回来。",
+        "数据不好看不是问题，问题是你可能自己也感觉到了。歇一局，喝口水，别硬打。",
+    ],
+}
+
+
+@dataclass
+class RecentReport:
+    games: int
+    wins: int
+    win_rate: float
+    score: float
+    grade: str
+    comment: str
+    dpm: float
+    dpm_base: float
+    share: float
+    share_base: float
+    kda: float
+    kda_base: float
+    mode_note: str
+
+
+def recent_report(
+    matches: list[Match], viewer: str | None = None, window: int = 20
+) -> RecentReport | None:
+    """最近 window 场的评价。输出占 50%，其余是占比 / KDA / 胜率。
+
+    基线取"同一批对局里，你自己"的长期平均，所以这是"跟你自己比"，不是跟路人比。
+    """
+    if not matches:
+        return None
+    picked = matches[:window]
+    if not picked:
+        return None
+
+    def metrics(ms: list[Match]) -> tuple[float, float, float, int]:
+        dpm_sum = 0.0
+        share_sum = 0.0
+        ks = ds = as_ = 0
+        wins = 0
+        used = 0
+        for m in ms:
+            p = m.player_for(viewer)
+            if not p:
+                continue
+            used += 1
+            mins = max(m.duration_s, 60) / 60.0
+            dpm_sum += p.damage_dealt / mins
+            share_sum += m.share_for(p)
+            ks += p.kills
+            ds += p.deaths
+            as_ += p.assists
+            if m.win:
+                wins += 1
+        if not used:
+            return 0.0, 0.0, 0.0, 0
+        return (
+            dpm_sum / used,
+            share_sum / used,
+            (ks + as_) / max(ds, 1),
+            wins,
+        )
+
+    dpm, share, kda, wins = metrics(picked)
+    b_dpm, b_share, b_kda, _ = metrics(matches)
+    if b_dpm <= 0:
+        b_dpm = dpm or 1.0
+    if b_share <= 0:
+        b_share = share or 0.01
+    if b_kda <= 0:
+        b_kda = kda or 1.0
+
+    wr = wins / len(picked)
+    wr_base = sum(1 for m in matches if m.win) / len(matches)
+
+    def ratio(now: float, base: float, cap: float = 1.6) -> float:
+        if base <= 0:
+            return 1.0
+        return max(0.0, min(cap, now / base))
+
+    r_dpm = ratio(dpm, b_dpm)
+    r_share = ratio(share, b_share)
+    r_kda = ratio(kda, b_kda)
+    r_wr = ratio(wr, wr_base) if wr_base > 0 else 1.0
+
+    # 加权比值 1.0 = 跟自己的长期平均持平 = 60 分（B）
+    mixed = 0.50 * r_dpm + 0.25 * r_share + 0.15 * r_kda + 0.10 * r_wr
+    score = 60.0 + (mixed - 1.0) * 100.0
+    score = max(0.0, min(100.0, score))
+
+    if score >= 85:
+        grade = "S"
+    elif score >= 70:
+        grade = "A"
+    elif score >= 55:
+        grade = "B"
+    elif score >= 40:
+        grade = "C"
+    else:
+        grade = "D"
+
+    diff = abs(r_dpm - 1.0) * 100
+    pool = _QUIPS[grade]
+    template = pool[int(score) % len(pool)]
+    comment = template.format(
+        n=len(picked), dpm=f"{dpm:,.0f}", diff=f"{diff:.0f}", share=f"{share*100:.0f}",
+        wr=f"{wr*100:.0f}",
+    )
+
+    aram = sum(1 for m in picked if m.mode in ("KIWI", "KIWI_JADE", "ARAM"))
+    mode_note = ""
+    if aram >= len(picked) * 0.6:
+        mode_note = "近%s场以海克斯大乱斗为主，按乱斗口径评" % len(picked)
+
+    return RecentReport(
+        games=len(picked),
+        wins=wins,
+        win_rate=wr,
+        score=score,
+        grade=grade,
+        comment=comment,
+        dpm=dpm,
+        dpm_base=b_dpm,
+        share=share,
+        share_base=b_share,
+        kda=kda,
+        kda_base=b_kda,
+        mode_note=mode_note,
+    )
+
+
 def feature_weights(matches: list[Match], viewer: str | None = None) -> dict[str, float]:
     """用你自己的对局数据决定"主要看什么"。
 

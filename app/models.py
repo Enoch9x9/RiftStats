@@ -35,6 +35,8 @@ class Participant:
     is_self: bool = False
     puuid: str = ""
     summoner_id: str = ""
+    items: list[int] = field(default_factory=list)      # 装备 ID
+    augments: list[int] = field(default_factory=list)   # 海克斯强化 ID
 
     @property
     def kda(self) -> float:
