@@ -391,6 +391,7 @@ class ImportPage(QWidget):
             self._log(line)
         if matches:
             self._save(matches)
+            self.synced.emit()
         else:
             self._log("没有拿到对局。可以先手动截图录入，或者检查客户端是否在运行。")
 
@@ -422,4 +423,3 @@ class ImportPage(QWidget):
         self.store.clear(source="demo")
         self._log("演示数据已清空")
         self.data_changed.emit()
-        self.synced.emit()

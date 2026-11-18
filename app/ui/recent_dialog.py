@@ -31,6 +31,8 @@ class RecentDialog(QDialog):
         self.setWindowTitle("近期评价")
         self.setModal(True)
         self.setMinimumWidth(640)
+        # 主窗口前面：强制置顶 + 抢焦点，否则任务栏一闪就没了
+        self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, True)
 
         root = QVBoxLayout(self)
         root.setContentsMargins(30, 24, 30, 20)

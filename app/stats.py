@@ -139,7 +139,7 @@ def teammate_table(
 
     buckets: dict[str, list[Match]] = defaultdict(list)
     for m in matches:
-        # 视角玩家的队友，不是"我"的队友——否则查 fantastic 时永远看不到 Icarus
+        # 视角玩家的队友，不是"我"的队友——否则换视角时看不到原视角玩家
         for name in {p.name for p in m.teammates_of(viewer) if p.name}:
             buckets[name].append(m)
 

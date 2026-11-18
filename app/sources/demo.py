@@ -10,20 +10,21 @@ import time
 
 from ..models import BLUE, RED, Match, Participant
 
-FRIENDS = ["万圣tt", "fantastic_...", "纯粹的贱", "差一点胡"]
+# 全是编的，跟任何真实玩家无关
+FRIENDS = ["老张不抓上路", "奶茶只要三分糖", "凌晨四点的猫", "只会玩辅助"]
 STRANGERS = [
-    "甜瓜有点皮",
-    "Snow、Moonmoon",
-    "只玩坐牢桥",
-    "唐克以后就是宋",
-    "卑微补位中",
-    "麻烦加强一下ADC",
-    "程师傅的大口袋",
-    "青灯索魂无情勾",
-    "MY1215",
-    "桃谷绘里香",
-    "koko",
-    "小笨蛋不哭",
+    "电竞小学生",
+    "打野在挂机",
+    "闪现撞墙",
+    "菜就多练",
+    "中路第一深情",
+    "辅助快跟我",
+    "打不过就投",
+    "峡谷养生局",
+    "摸鱼选手",
+    "不会打字",
+    "野区散步",
+    "躺赢专家",
 ]
 CHAMPS = [
     "布里茨", "维鲁斯", "厄斐琉斯", "拉克丝", "泰达米尔", "盖伦", "亚索",
@@ -37,7 +38,7 @@ def _damage(rng: random.Random, win: bool) -> int:
     return int(max(4000, min(52000, base)))
 
 
-def generate(count: int = 48, seed: int = 20261117, self_name: str = "Icarus") -> list[Match]:
+def generate(count: int = 48, seed: int = 20261117, self_name: str = "示例玩家") -> list[Match]:
     rng = random.Random(seed)
     now = int(time.time())
     matches: list[Match] = []

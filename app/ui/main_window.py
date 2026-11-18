@@ -208,6 +208,9 @@ class MainWindow(QMainWindow):
         if rep is None:
             return
         dlg = RecentDialog(rep, self)
+        dlg.raise_()
+        dlg.activateWindow()
+        dlg.setFocus()
         dlg.exec()
         self._goto(0)
 

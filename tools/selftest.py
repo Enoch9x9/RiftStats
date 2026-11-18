@@ -32,7 +32,7 @@ def check(name: str, cond: bool, detail: str = "") -> None:
 
 def _match(i: int, win: bool, me_dmg: int, me_taken: int, mates: list[str]) -> Match:
     parts = [
-        Participant(name="Icarus", side=BLUE, slot=0, is_self=True,
+        Participant(name="示例玩家", side=BLUE, slot=0, is_self=True,
                     damage_dealt=me_dmg, damage_taken=me_taken,
                     kills=5, deaths=5, assists=10),
     ]
@@ -42,7 +42,7 @@ def _match(i: int, win: bool, me_dmg: int, me_taken: int, mates: list[str]) -> M
         parts.append(Participant(name=f"E{s}", side=RED, slot=s, damage_dealt=1000))
     return Match(
         match_id=f"t:{i}", created_at=1000 + i, duration_s=1800, mode="ARAM",
-        win=win, self_side=BLUE, self_slot=0, self_name="Icarus", participants=parts,
+        win=win, self_side=BLUE, self_slot=0, self_name="示例玩家", participants=parts,
     )
 
 
